@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Domain Checker Agent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --border: #1e1e1e;
+    --accent: #00e5a0;
+    --accent-dim: rgba(0,229,160,0.12);
+    --text: #f0f0f0;
+    --muted: #555;
+    --available: #00e5a0;
+    --taken: #ff4757;
+    --checking: #ffa502;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  .container { max-width: 680px; margin: 0 auto; }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    margin-bottom: 32px;
+  }
+
+  .cooking-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .claude-orb {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .orb-core {
+    width: 26px;
+    height: 26px;
+    background: radial-gradient(circle at 38% 32%, #ffdd57 0%, #ff8c00 40%, #e63000 75%, #a00000 100%);
+    animation: orbMorph 3s ease-in-out infinite, orbGlow 3s ease-in-out infinite, orbShift 5s ease-in-out infinite;
+    position: relative;
+  }
+
+  /* soft halo behind the orb */
+  .claude-orb::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, rgba(255,200,50,0.18), rgba(230,80,0,0.10), transparent 70%);
+    animation: haloBreath 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes orbMorph {
+    0%   { border-radius: 50%; transform: scale(1) rotate(0deg); }
+    20%  { border-radius: 48% 52% 44% 56% / 52% 46% 54% 48%; transform: scale(1.04) rotate(8deg); }
+    40%  { border-radius: 42% 58% 55% 45% / 46% 54% 46% 54%; transform: scale(0.97) rotate(-4deg); }
+    60%  { border-radius: 55% 45% 48% 52% / 50% 44% 56% 50%; transform: scale(1.06) rotate(6deg); }
+    80%  { border-radius: 46% 54% 52% 48% / 54% 48% 52% 46%; transform: scale(0.98) rotate(-6deg); }
+    100% { border-radius: 50%; transform: scale(1) rotate(0deg); }
+  }
+
+  @keyframes orbGlow {
+    0%, 100% { box-shadow: 0 0 6px 1px rgba(255,100,0,0.5), 0 0 14px 2px rgba(220,50,0,0.2); }
+    33%  { box-shadow: 0 0 10px 2px rgba(255,160,0,0.55), 0 0 20px 4px rgba(255,80,0,0.2); }
+    66%  { box-shadow: 0 0 6px 1px rgba(200,30,0,0.5),   0 0 12px 2px rgba(255,120,0,0.18); }
+  }
+
+  @keyframes orbShift {
+    0%, 100% { background: radial-gradient(circle at 38% 32%, #ffdd57 0%, #ff8c00 40%, #e63000 75%, #a00000 100%); }
+    50%       { background: radial-gradient(circle at 55% 42%, #ffe680 0%, #ffaa00 35%, #cc2200 72%, #800000 100%); }
+  }
+
+  @keyframes haloBreath {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50%       { opacity: 1;   transform: scale(1.15); }
+  }
+
+  /* remove the old ring elements from rendering */
+  .orb-ring { display: none; }
+  .orb-ring-2 { display: none; }
+
+  .cooking-text { flex: 1; }
+
+  .cooking-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .cooking-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .instructions {
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+
+  .instructions-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+
+  .instructions p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .instructions strong { color: var(--text); font-weight: 500; }
+  .instructions em { color: var(--text); font-style: normal; }
+
+  .tag {
+    background: var(--border);
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 2px 6px;
+    color: var(--accent);
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+
+  button {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: #000;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 12px 20px;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .status-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .dot.active {
+    background: var(--accent);
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .results { display: flex; flex-direction: column; gap: 8px; }
+
+  .result-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-item.available { border-color: rgba(0,229,160,0.25); }
+  .result-item.taken { border-color: rgba(255,71,87,0.15); }
+
+  .domain-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  .badge.available {
+    background: rgba(0,229,160,0.15);
+    color: var(--available);
+  }
+
+  .badge.taken {
+    background: rgba(255,71,87,0.1);
+    color: var(--taken);
+  }
+
+  .badge.checking {
+    background: rgba(255,165,2,0.1);
+    color: var(--checking);
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    margin-top: 24px;
+  }
+
+  .available-section .section-label { color: var(--accent); }
+
+  .thinking-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 40px 0;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Domain Checker</h1>
+  <p class="subtitle">Check if your business name is available as a domain.</p>
+
+  <div class="instructions">
+    <div class="instructions-title">How to use</div>
+    <p>Type one or more business names separated by commas, then hit <strong>Check</strong>. We'll look up the <span class="tag">.com</span> domain for each name and show you what's available to register.</p>
+    <p style="margin-top: 10px;">Not sure what name to use? Try different keywords — adding words like <em>Labs</em>, <em>Group</em>, <em>Works</em>, or <em>Partners</em> to your name often opens up availability.</p>
+  </div>
+
+  <div class="input-row">
+    <input type="text" id="nameInput" placeholder="Type business name" />
+    <button id="checkBtn" onclick="runCheck()">Check</button>
+  </div>
+
+  <!-- Claude-style cooking animation -->
+  <div id="cookingArea" style="display:none; margin-bottom: 24px;">
+    <div class="cooking-card">
+      <div class="claude-orb">
+        <div class="orb-ring"></div>
+        <div class="orb-ring orb-ring-2"></div>
+        <div class="orb-core"></div>
+      </div>
+      <div class="cooking-text">
+        <div class="cooking-label" id="cookingLabel">Checking availability...</div>
+        <div class="cooking-sub">This usually takes a few seconds</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultsArea"><div class="empty">Results will appear here.</div></div>
+</div>
+
+<script>
+  // Pre-fill with the client's names
+  // input starts empty
+
+  const cookingMessages = [
+    'Checking availability...',
+    'Looking up domains...',
+    'Almost there...',
+    'Wrapping up...'
+  ];
+  let cookingInterval = null;
+
+  function showCooking(show) {
+    document.getElementById('cookingArea').style.display = show ? 'block' : 'none';
+    if (show) {
+      let i = 0;
+      document.getElementById('cookingLabel').textContent = cookingMessages[0];
+      cookingInterval = setInterval(() => {
+        i = (i + 1) % cookingMessages.length;
+        document.getElementById('cookingLabel').textContent = cookingMessages[i];
+      }, 2200);
+    } else {
+      clearInterval(cookingInterval);
+    }
+  }
+
+  function setStatus(msg, active = false) {
+    // no-op: status bar replaced by cooking animation
+  }
+
+  function slugify(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function renderResults(available, taken) {
+    const area = document.getElementById('resultsArea');
+    let html = '';
+
+    if (available.length > 0) {
+      html += `<div class="available-section"><div class="section-label">✓ Available (${available.length})</div>`;
+      available.forEach(d => {
+        html += `<div class="result-item available">
+          <span class="domain-name">${d.domain}</span>
+          <span class="badge available">available</span>
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    if (taken.length > 0) {
+      html += `<div><div class="section-label">✗ Taken (${taken.length})</div>`;
+      taken.forEach(d => {
+        html += `<div class="result-item taken">
+          <span class="domain-name">${d.domain}</span>
+          <span class="badge taken">taken</span>
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    if (!html) html = '<div class="empty">No results.</div>';
+    area.innerHTML = html;
+  }
+
+  async function runCheck() {
+    const input = document.getElementById('nameInput').value.trim();
+    if (!input) return;
+
+    const btn = document.getElementById('checkBtn');
+    btn.disabled = true;
+    document.getElementById('resultsArea').innerHTML = '';
+    showCooking(true);
+
+    // Parse names
+    const names = input.split(',').map(n => n.trim()).filter(Boolean);
+
+    // Build domain list: .com only
+    const domains = [];
+    names.forEach(name => {
+      const slug = slugify(name);
+      domains.push(`${slug}.com`);
+    });
+
+    // Check each .com via Verisign's authoritative RDAP endpoint.
+    //   404 = unregistered (available), 200 = registered (taken).
+    // Verisign RDAP sends Access-Control-Allow-Origin: *, so the browser can
+    // call it directly — no backend, no API key, no MCP session required.
+    async function checkDomain(domain) {
+      try {
+        const res = await fetch(`https://rdap.verisign.com/com/v1/domain/${encodeURIComponent(domain)}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/rdap+json' }
+        });
+        if (res.status === 404) return { domain, status: 'available' };
+        if (res.status === 200) return { domain, status: 'taken' };
+        return { domain, status: 'error' };
+      } catch (e) {
+        return { domain, status: 'error' };
+      }
+    }
+
+    try {
+      const results = await Promise.all(domains.map(checkDomain));
+      const available = results.filter(r => r.status === 'available');
+      const taken = results.filter(r => r.status === 'taken');
+      const errored = results.filter(r => r.status === 'error');
+
+      showCooking(false);
+
+      if (available.length === 0 && taken.length === 0) {
+        document.getElementById('resultsArea').innerHTML = `<div class="empty">Couldn't reach the registry. Please try again.</div>`;
+      } else {
+        renderResults(available, taken);
+        if (errored.length) {
+          const note = document.createElement('div');
+          note.className = 'empty';
+          note.style.paddingTop = '16px';
+          note.textContent = `${errored.length} domain(s) couldn't be checked: ${errored.map(e => e.domain).join(', ')}`;
+          document.getElementById('resultsArea').appendChild(note);
+        }
+      }
+    } catch (err) {
+      showCooking(false);
+      document.getElementById('resultsArea').innerHTML = `<div class="empty">Something went wrong. Try again.</div>`;
+    }
+
+    btn.disabled = false;
+  }
+
+  // Allow Enter key
+  document.getElementById('nameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runCheck();
+  });
+</script>
+</body>
+</html>
