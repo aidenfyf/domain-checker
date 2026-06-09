@@ -204,6 +204,30 @@
   button:hover { opacity: 0.85; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
 
+  .reset-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 32px;
+  }
+
+  .reset-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    padding: 10px 28px;
+  }
+
+  .reset-btn:hover {
+    opacity: 1;
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
   .status-bar {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -354,6 +378,10 @@
   </div>
 
   <div id="resultsArea"><div class="empty">Results will appear here.</div></div>
+
+  <div class="reset-row">
+    <button id="resetBtn" class="reset-btn" onclick="resetCheck()">Reset</button>
+  </div>
 </div>
 
 <script>
@@ -418,6 +446,15 @@
 
     if (!html) html = '<div class="empty">No results.</div>';
     area.innerHTML = html;
+  }
+
+  function resetCheck() {
+    const input = document.getElementById('nameInput');
+    input.value = '';
+    showCooking(false);
+    document.getElementById('checkBtn').disabled = false;
+    document.getElementById('resultsArea').innerHTML = '<div class="empty">Results will appear here.</div>';
+    input.focus();
   }
 
   async function runCheck() {
